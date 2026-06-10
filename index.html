@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liana's Game — Space</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #000010;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    cursor: default;
+  }
+
+  /* ── Nebula backdrop ── */
+  .nebula {
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(120, 0, 255, 0.25) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 30%, rgba(0, 80, 255, 0.2) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 80%, rgba(180, 0, 180, 0.18) 0%, transparent 50%),
+      radial-gradient(ellipse at 10% 10%, rgba(0, 200, 255, 0.12) 0%, transparent 40%);
+    animation: nebulaDrift 30s ease-in-out infinite alternate;
+    z-index: 0;
+  }
+  @keyframes nebulaDrift {
+    0%   { transform: scale(1) rotate(0deg); }
+    50%  { transform: scale(1.15) rotate(3deg); }
+    100% { transform: scale(1) rotate(-2deg); }
+  }
+
+  /* ── Starfield canvas ── */
+  #starfield {
+    position: fixed; inset: 0;
+    z-index: 1;
+  }
+
+  /* ── Planet layer ── */
+  .planets {
+    position: fixed; inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .planet {
+    position: absolute;
+    border-radius: 50%;
+    animation: floatPlanet 20s ease-in-out infinite;
+  }
+
+  /* Planet 1 — large gas giant (top right) */
+  .planet--1 {
+    width: 280px; height: 280px;
+    top: -80px; right: -60px;
+    background: radial-gradient(circle at 40% 35%,
+      #d4a843 0%, #e8c97a 20%, #c4883c 35%, #8b5e2b 50%,
+      #6d3a1a 65%, #3a1a0a 80%, #1a0a05 100%);
+    box-shadow:
+      inset 0 0 60px rgba(255,200,100,0.3),
+      0 0 120px rgba(212,168,67,0.25),
+      0 0 200px rgba(212,168,67,0.1);
+    animation-delay: 0s;
+    animation-duration: 28s;
+  }
+  /* Planet 1 ring */
+  .planet--1::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 380px; height: 40px;
+    transform: translate(-50%, -50%) rotateX(75deg);
+    border-radius: 50%;
+    border: 6px solid rgba(200,170,100,0.35);
+    box-shadow: 0 0 30px rgba(200,170,100,0.2);
+  }
+
+  /* Planet 2 — blue ice planet (bottom left) */
+  .planet--2 {
+    width: 120px; height: 120px;
+    bottom: 60px; left: 80px;
+    background: radial-gradient(circle at 35% 30%,
+      #88ccff 0%, #4499cc 30%, #2266aa 55%, #0a3366 80%, #051a33 100%);
+    box-shadow:
+      inset 0 0 30px rgba(150,210,255,0.4),
+      0 0 80px rgba(100,180,255,0.3);
+    animation-delay: -8s;
+    animation-duration: 24s;
+  }
+
+  /* Planet 3 — small purple planet (mid-left) */
+  .planet--3 {
+    width: 50px; height: 50px;
+    top: 25%; left: 15%;
+    background: radial-gradient(circle at 30% 25%,
+      #dda0ff 0%, #9944cc 40%, #6622aa 70%, #220844 100%);
+    box-shadow:
+      inset 0 0 15px rgba(200,150,255,0.4),
+      0 0 40px rgba(150,100,255,0.3);
+    animation-delay: -15s;
+    animation-duration: 18s;
+  }
+
+  /* Planet 4 — red Mars-like (bottom right) */
+  .planet--4 {
+    width: 70px; height: 70px;
+    bottom: 25%; right: 15%;
+    background: radial-gradient(circle at 35% 30%,
+      #ff7744 0%, #cc4422 40%, #882211 70%, #330a05 100%);
+    box-shadow:
+      inset 0 0 20px rgba(255,150,100,0.3),
+      0 0 50px rgba(255,100,50,0.25);
+    animation-delay: -5s;
+    animation-duration: 22s;
+  }
+
+  @keyframes floatPlanet {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    25%      { transform: translate(15px, -20px) rotate(5deg); }
+    50%      { transform: translate(-10px, 10px) rotate(-3deg); }
+    75%      { transform: translate(8px, -8px) rotate(4deg); }
+  }
+
+  /* ── Shooting stars ── */
+  .shooting-star {
+    position: fixed;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .shooting-star::before {
+    content: '';
+    display: block;
+    width: 3px;
+    height: 80px;
+    background: linear-gradient(to bottom, rgba(255,255,255,1), rgba(255,255,255,0));
+    border-radius: 2px;
+    box-shadow: 0 0 6px 2px rgba(255,255,255,0.6);
+    animation: shoot 2s ease-out;
+    opacity: 0;
+  }
+  @keyframes shoot {
+    0%   { opacity: 1; transform: translate(0, 0) rotate(-35deg) scaleY(1); }
+    50%  { opacity: 0.8; transform: translate(200px, 200px) rotate(-35deg) scaleY(0.3); }
+    100% { opacity: 0; transform: translate(500px, 500px) rotate(-35deg) scaleY(0); }
+  }
+
+  /* ── Content overlay ── */
+  .content {
+    position: fixed; inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .content h1 {
+    font-size: clamp(2rem, 6vw, 5rem);
+    font-weight: 700;
+    background: linear-gradient(135deg, #d4a843, #f0d78c, #d4a843);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    letter-spacing: 0.05em;
+    filter: drop-shadow(0 0 30px rgba(212,168,67,0.4));
+  }
+  .content .subtitle {
+    margin-top: 0.5em;
+    font-size: clamp(0.9rem, 2vw, 1.4rem);
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+  }
+
+  /* ── Audio toggle ── */
+  .audio-toggle {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    z-index: 20;
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    color: rgba(255,255,255,0.7);
+    font-size: 22px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s;
+    pointer-events: all;
+  }
+  .audio-toggle:hover {
+    border-color: rgba(255,255,255,0.5);
+    color: #fff;
+    box-shadow: 0 0 20px rgba(255,255,255,0.15);
+  }
+  .audio-toggle.muted { opacity: 0.4; }
+</style>
+</head>
+<body>
+
+<!-- Nebula backdrop -->
+<div class="nebula"></div>
+
+<!-- Interactive starfield -->
+<canvas id="starfield"></canvas>
+
+<!-- Planets -->
+<div class="planets">
+  <div class="planet planet--1"></div>
+  <div class="planet planet--2"></div>
+  <div class="planet planet--3"></div>
+  <div class="planet planet--4"></div>
+</div>
+
+<!-- Content overlay -->
+<div class="content">
+  <h1>Liana's Game</h1>
+  <p class="subtitle">✦ &nbsp;Explore the Cosmos &nbsp;✦</p>
+</div>
+
+<!-- Audio toggle -->
+<button class="audio-toggle" id="audioBtn" title="Toggle space ambience">🔇</button>
+
+<script>
+  // ═══════════════════════════════════════════
+  //  STARFIELD — twinkling stars on canvas
+  // ═══════════════════════════════════════════
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+
+  let stars = [];
+  const STAR_COUNT = 300;
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Create stars
+  for (let i = 0; i < STAR_COUNT; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 2.5 + 0.5,
+      brightness: Math.random(),
+      speed: Math.random() * 0.02 + 0.005,
+      hue: Math.random() < 0.15
+        ? Math.random() < 0.5 ? 220 : 40  // blue or gold tint
+        : 0  // white
+    });
+  }
+
+  function drawStars() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (const s of stars) {
+      // Twinkle
+      s.brightness += s.speed;
+      if (s.brightness > 1 || s.brightness < 0) s.speed *= -1;
+
+      const alpha = 0.3 + s.brightness * 0.7;
+
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+
+      if (s.hue > 0) {
+        ctx.fillStyle = `hsla(${s.hue}, 80%, 80%, ${alpha})`;
+      } else {
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      }
+
+      // Glow on bright stars
+      if (s.r > 1.5 && s.brightness > 0.7) {
+        ctx.shadowBlur = s.r * 4;
+        ctx.shadowColor = s.hue ? `hsla(${s.hue}, 80%, 80%, 0.8)` : 'rgba(255,255,255,0.8)';
+      } else {
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    requestAnimationFrame(drawStars);
+  }
+  drawStars();
+
+  // Mouse parallax — stars shift slightly
+  document.addEventListener('mousemove', (e) => {
+    const dx = (e.clientX / window.innerWidth - 0.5) * 4;
+    const dy = (e.clientY / window.innerHeight - 0.5) * 4;
+    document.querySelector('.planets').style.transform =
+      `translate(${dx}px, ${dy}px)`;
+    canvas.style.transform = `translate(${dx * 0.3}px, ${dy * 0.3}px)`;
+  });
+
+  // ═══════════════════════════════════════════
+  //  SHOOTING STARS — occasional
+  // ═══════════════════════════════════════════
+  function spawnShootingStar() {
+    const star = document.createElement('div');
+    star.className = 'shooting-star';
+    star.style.top = Math.random() * 40 + '%';
+    star.style.left = Math.random() * 60 + '%';
+    document.body.appendChild(star);
+
+    // Remove after animation
+    setTimeout(() => star.remove(), 2200);
+  }
+
+  // Spawn every 4-10 seconds
+  function scheduleShootingStar() {
+    spawnShootingStar();
+    setTimeout(scheduleShootingStar, Math.random() * 6000 + 4000);
+  }
+  scheduleShootingStar();
+
+  // ═══════════════════════════════════════════
+  //  WEB AUDIO API — space ambient synthesizer
+  //  No file loading needed — 100% reliable
+  // ═══════════════════════════════════════════
+  const audioBtn = document.getElementById('audioBtn');
+  let audioCtx = null;
+  let audioPlaying = false;
+  let masterGain = null;
+  let oscillators = [];
+  let lfoNodes = [];
+
+  function createSpaceAmbient() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0;
+    masterGain.connect(audioCtx.destination);
+
+    // Ramp volume up smoothly
+    masterGain.gain.setTargetAtTime(0.3, audioCtx.currentTime, 1.5);
+
+    // Helper: create an oscillator with envelope + LFO
+    function createDrone(freq, vol, type = 'sine', detune = 0, lfoFreq = 0, lfoDepth = 0) {
+      const osc = audioCtx.createOscillator();
+      osc.type = type;
+      osc.frequency.value = freq;
+      osc.detune.value = detune;
+
+      const gain = audioCtx.createGain();
+      gain.gain.value = vol;
+
+      osc.connect(gain);
+
+      if (lfoFreq > 0) {
+        const lfo = audioCtx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.value = lfoFreq;
+        const lfoGain = audioCtx.createGain();
+        lfoGain.gain.value = lfoDepth;
+        lfo.connect(lfoGain);
+        lfoGain.connect(gain.gain);
+        lfo.start();
+        lfoNodes.push(lfo);
+      }
+
+      gain.connect(masterGain);
+      osc.start();
+      oscillators.push({ osc, gain });
+      return { osc, gain };
+    }
+
+    // Deep rumble ~30Hz
+    createDrone(30, 0.25, 'sine', 0, 0.15, 0.1);
+    // Mid drone ~80Hz with slow amplitude modulation
+    createDrone(80, 0.18, 'sine', 5, 0.08, 0.12);
+    // Higher shimmer ~200Hz
+    createDrone(200, 0.05, 'triangle', -5, 0.12, 0.03);
+    // Slow sweep drone ~55Hz
+    createDrone(55, 0.1, 'sine', 0, 0.05, 15);
+    // High crystalline ~800Hz
+    createDrone(800, 0.025, 'sine', 3, 0.7, 0.01);
+    // Very high sparkle ~4000Hz
+    createDrone(4000, 0.004, 'sine', 0, 0.03, 0.002);
+
+    // White noise (space wind) through bandpass
+    try {
+      const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      noise.loop = true;
+      const bandpass = audioCtx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.frequency.value = 400;
+      bandpass.Q.value = 0.8;
+      const noiseGain = audioCtx.createGain();
+      noiseGain.gain.value = 0.02;
+      // Modulate noise volume
+      const noiseLfo = audioCtx.createOscillator();
+      noiseLfo.frequency.value = 0.02;
+      const noiseLfoGain = audioCtx.createGain();
+      noiseLfoGain.gain.value = 0.01;
+      noiseLfo.connect(noiseLfoGain);
+      noiseLfoGain.connect(noiseGain.gain);
+      noiseLfo.start();
+      lfoNodes.push(noiseLfo);
+
+      noise.connect(bandpass);
+      bandpass.connect(noiseGain);
+      noiseGain.connect(masterGain);
+      noise.start();
+      oscillators.push({ osc: noise, gain: noiseGain });
+    } catch (e) { /* noise optional */ }
+  }
+
+  function destroySpaceAmbient() {
+    // Fade out
+    if (masterGain && audioCtx) {
+      masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.8);
+    }
+    setTimeout(() => {
+      for (const o of oscillators) {
+        try { o.osc.stop(); } catch (e) {}
+      }
+      for (const l of lfoNodes) {
+        try { l.stop(); } catch (e) {}
+      }
+      oscillators = [];
+      lfoNodes = [];
+      if (audioCtx && audioCtx.state !== 'closed') {
+        audioCtx.close();
+      }
+      audioCtx = null;
+      masterGain = null;
+    }, 900);
+  }
+
+  audioBtn.addEventListener('click', () => {
+    if (audioPlaying) {
+      destroySpaceAmbient();
+      audioPlaying = false;
+      audioBtn.textContent = '🔇';
+      audioBtn.classList.add('muted');
+    } else {
+      createSpaceAmbient();
+      audioPlaying = true;
+      audioBtn.textContent = '🔊';
+      audioBtn.classList.remove('muted');
+    }
+  });
+</script>
+
+</body>
+</html>

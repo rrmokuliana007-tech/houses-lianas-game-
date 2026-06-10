@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="pGrad" cx="35%" cy="30%">
+      <stop offset="0%" stop-color="#ffcc66"/>
+      <stop offset="15%" stop-color="#e8a840"/>
+      <stop offset="35%" stop-color="#c47a20"/>
+      <stop offset="55%" stop-color="#8b4a10"/>
+      <stop offset="75%" stop-color="#4a2008"/>
+      <stop offset="100%" stop-color="#1a0a02"/>
+    </radialGradient>
+    <filter id="pGlow">
+      <feGaussianBlur stdDeviation="20" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="200" cy="200" r="160" fill="url(#pGrad)" filter="url(#pGlow)"/>
+  <!-- Ring -->
+  <ellipse cx="200" cy="200" rx="230" ry="30" fill="none" stroke="rgba(200,160,80,0.4)" stroke-width="8"
+    transform="rotate(-20, 200, 200)"/>
+  <ellipse cx="200" cy="200" rx="230" ry="30" fill="none" stroke="rgba(200,160,80,0.15)" stroke-width="2"
+    transform="rotate(-20, 200, 200)"/>
+</svg>
