@@ -317,7 +317,7 @@ function buildPlanets(){const f=document.getElementById('planetField');f.querySe
 }
 function ap(){const f=document.getElementById('planetField');if(!document.getElementById('planet-screen').classList.contains('active')){requestAnimationFrame(ap);return}const cx=f.offsetWidth/2,cy=f.offsetHeight/2;planets.forEach((p,i)=>{planetAngles[i]+=0.002*(24/p.speed);const oR=(p.orbit*Math.min(f.offsetWidth,f.offsetHeight))/2;const px=cx+Math.cos(planetAngles[i])*oR-p.size/2,py=cy+Math.sin(planetAngles[i])*oR-p.size/2;const el=f.querySelector(`[data-planet-id="${p.id}"]`);if(el){el.style.left=px+'px';el.style.top=py+'px'}});requestAnimationFrame(ap)}
 function goToPlanets(){stopMazeTimer();document.getElementById('winOverlay').classList.remove('show');showScreen('planet-screen');setTimeout(buildPlanets,50)}
-function restartGame(){stopMazeTimer();document.getElementById('winOverlay').classList.remove('show');selectedChar=null;locked=false;friendlies=[];turnCount=0;document.getElementById('confirmBtn').classList.remove('active');document.getElementById('confirmBtn').textContent='Lock In';document.getElementById('confirmBtn').style.animation='';document.getElementById('confirmBtn').style.borderColor='';document.getElementById('confirmBtn').style.color='';document.getElementById('confirmBtn').style.boxShadow='';document.querySelectorAll('.char-card').forEach(c=>c.classList.remove('selected'));showScreen('char-screen')}
+function restartGame(){stopMazeTimer();document.getElementById('winOverlay').classList.remove('show');selectedChar=null;locked=false;friendlies=[];turnCount=0;freezeTurns=0;document.getElementById('confirmBtn').classList.remove('active');document.getElementById('confirmBtn').textContent='Lock In';document.getElementById('confirmBtn').style.animation='';document.getElementById('confirmBtn').style.borderColor='';document.getElementById('confirmBtn').style.color='';document.getElementById('confirmBtn').style.boxShadow='';document.querySelectorAll('.char-card').forEach(c=>c.classList.remove('selected'));showScreen('char-screen')}
 
 // Maze
 const MAZE_COLS=21,MAZE_ROWS=15,COINS_TOTAL=5;
@@ -331,15 +331,18 @@ function generateMaze(cols,rows){let grid=Array(rows).fill(null).map(()=>Array(c
   let start=passages.find(([c,r])=>c<cols/3&&r<rows/3)||passages[0];passages=passages.filter(p=>!(p[0]===start[0]&&p[1]===start[1]));
   let coinPositions=[],pool=[...passages];pool.sort(()=>Math.random()-0.5);for(let[c,r]of pool){if(coinPositions.length>=COINS_TOTAL)break;let tooClose=coinPositions.some(([cc,cr])=>Math.abs(c-cc)+Math.abs(r-cr)<5);if(!tooClose)coinPositions.push([c,r])}
   let enemySpawns=[],farPool=passages.filter(([c,r])=>Math.abs(c-start[0])+Math.abs(r-start[1])>8);farPool.sort(()=>Math.random()-0.5);for(let[c,r]of farPool){if(enemySpawns.length>=1)break;enemySpawns.push([c,r])}
-  let friendlySpawns=[];for(let[c,r]of farPool){if(friendlySpawns.length>=2)break;let tooClose=enemySpawns.some(([ec,er])=>Math.abs(c-ec)+Math.abs(r-er)<6)||friendlySpawns.some(([fc,fr])=>Math.abs(c-fc)+Math.abs(r-fr)<6);if(!tooClose)friendlySpawns.push([c,r])}
+  let friendlySpawns=[];
+  let openSpots=farPool.filter(([c,r])=>{let exits=0;for(let[dx,dy]of[[0,-1],[0,1],[-1,0],[1,0]]){let nx=c+dx,ny=r+dy;if(nx>=0&&nx<cols&&ny>=0&&ny<rows&&grid[ny][nx]===0)exits++}return exits>=3});
+  openSpots.sort(()=>Math.random()-0.5);
+  for(let[c,r]of openSpots){if(friendlySpawns.length>=2)break;let tooClose=enemySpawns.some(([ec,er])=>Math.abs(c-ec)+Math.abs(r-er)<6)||friendlySpawns.some(([fc,fr])=>Math.abs(c-fc)+Math.abs(r-fr)<6);if(!tooClose)friendlySpawns.push([c,r])}
   return{grid,start,coinPositions,enemySpawns,friendlySpawns};
 }
 
 function bfs(from,to,grid){let q=[[from]],seen=new Set();seen.add(from[0]+','+from[1]);while(q.length){let path=q.shift(),[cx,cy]=path[path.length-1];if(cx===to[0]&&cy===to[1])return path;for(let[dx,dy]of[[0,-1],[0,1],[-1,0],[1,0]]){let nx=cx+dx,ny=cy+dy,key=nx+','+ny;if(nx>=0&&nx<MAZE_COLS&&ny>=0&&ny<MAZE_ROWS&&grid[ny][nx]===0&&!seen.has(key)){seen.add(key);q.push([...path,[nx,ny]])}}}return null}
 
-let enemies=[],friendlies=[],turnCount=0,coins=0,totalCoins=COINS_TOTAL;
+let enemies=[],friendlies=[],turnCount=0,freezeTurns=0,coins=0,totalCoins=COINS_TOTAL;
 
-function enterPlanet(planetId){currentPlanet=planetId;const p=planets.find(p=>p.id===planetId);mazeGameOver=false;mazeData=generateMaze(MAZE_COLS,MAZE_ROWS);playerPos=[...mazeData.start];coins=0;totalCoins=mazeData.coinPositions.length;turnCount=0;
+function enterPlanet(planetId){currentPlanet=planetId;const p=planets.find(p=>p.id===planetId);mazeGameOver=false;mazeData=generateMaze(MAZE_COLS,MAZE_ROWS);playerPos=[...mazeData.start];coins=0;totalCoins=mazeData.coinPositions.length;turnCount=0;freezeTurns=0;
   enemies=mazeData.enemySpawns.map(([x,y],i)=>{let eid=(selectedChar%4)+1;return{pos:[x,y],charId:eid}});
   const usedIds=new Set([selectedChar,enemies[0]?.charId].filter(Boolean));const availableIds=[1,2,3,4].filter(id=>!usedIds.has(id));
   friendlies=mazeData.friendlySpawns.map(([x,y],i)=>{return{pos:[x,y],charId:availableIds[i]||((usedIds.size+i)%4+1)}});
@@ -366,13 +369,13 @@ function movePlayer(dx,dy){if(!mazeData||mazeGameOver)return;const[cx,cy]=player
   // Collect coin?
   mazeData.coinPositions=mazeData.coinPositions.filter(([cc,cr])=>{if(cc===nx&&cr===ny){coins++;return false}return true});
   // Friendly NPC gives coin too!
-  friendlies=friendlies.filter(f=>{if(f.pos[0]===nx&&f.pos[1]===ny){coins++;return false}return true});
+  friendlies=friendlies.filter(f=>{if(f.pos[0]===nx&&f.pos[1]===ny){coins++;freezeTurns=2;return false}return true});
   document.getElementById('mazeCharName').textContent=charNames[selectedChar]+' · 🪙 '+coins+'/'+totalCoins;
   // Update compass
   updateCompass();
   updateCoinTrack();
   if(coins>=totalCoins){mazeGameOver=true;drawMaze();winMaze();return}
-  turnCount++;if(turnCount%3===0)moveEnemies();
+  if(freezeTurns>0){freezeTurns--}else{turnCount++;if(turnCount%3===0)moveEnemies()}
   if(checkCaught()){mazeGameOver=true;drawMaze();loseMaze();return}
   drawMaze()}
 function moveEnemies(){for(let e of enemies){let path=bfs(e.pos,playerPos,mazeData.grid);if(path&&path.length>=2)e.pos=path[1]}}
