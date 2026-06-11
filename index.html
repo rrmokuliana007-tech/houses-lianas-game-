@@ -245,6 +245,7 @@
     <button class="dpad-btn dpad-up" onclick="movePlayer(0,-1)">▲</button>
     <div class="dpad-row">
       <button class="dpad-btn dpad-left" onclick="movePlayer(-1,0)">◀</button>
+      <button class="dpad-btn" onclick="dash()" style="font-size:12px;font-weight:700;color:#fbbf24;border-color:rgba(251,191,36,0.5);" id="dashBtn">💨×3</button>
       <button class="dpad-btn dpad-right" onclick="movePlayer(1,0)">▶</button>
     </div>
     <button class="dpad-btn dpad-down" onclick="movePlayer(0,1)">▼</button>
@@ -317,7 +318,7 @@ function buildPlanets(){const f=document.getElementById('planetField');f.querySe
 }
 function ap(){const f=document.getElementById('planetField');if(!document.getElementById('planet-screen').classList.contains('active')){requestAnimationFrame(ap);return}const cx=f.offsetWidth/2,cy=f.offsetHeight/2;planets.forEach((p,i)=>{planetAngles[i]+=0.002*(24/p.speed);const oR=(p.orbit*Math.min(f.offsetWidth,f.offsetHeight))/2;const px=cx+Math.cos(planetAngles[i])*oR-p.size/2,py=cy+Math.sin(planetAngles[i])*oR-p.size/2;const el=f.querySelector(`[data-planet-id="${p.id}"]`);if(el){el.style.left=px+'px';el.style.top=py+'px'}});requestAnimationFrame(ap)}
 function goToPlanets(){stopMazeTimer();document.getElementById('winOverlay').classList.remove('show');showScreen('planet-screen');setTimeout(buildPlanets,50)}
-function restartGame(){stopMazeTimer();document.getElementById('winOverlay').classList.remove('show');selectedChar=null;locked=false;friendlies=[];turnCount=0;freezeTurns=0;document.getElementById('confirmBtn').classList.remove('active');document.getElementById('confirmBtn').textContent='Lock In';document.getElementById('confirmBtn').style.animation='';document.getElementById('confirmBtn').style.borderColor='';document.getElementById('confirmBtn').style.color='';document.getElementById('confirmBtn').style.boxShadow='';document.querySelectorAll('.char-card').forEach(c=>c.classList.remove('selected'));showScreen('char-screen')}
+function restartGame(){stopMazeTimer();document.getElementById('winOverlay').classList.remove('show');selectedChar=null;locked=false;friendlies=[];turnCount=0;freezeTurns=0;dashesLeft=3;document.getElementById('confirmBtn').classList.remove('active');document.getElementById('confirmBtn').textContent='Lock In';document.getElementById('confirmBtn').style.animation='';document.getElementById('confirmBtn').style.borderColor='';document.getElementById('confirmBtn').style.color='';document.getElementById('confirmBtn').style.boxShadow='';document.querySelectorAll('.char-card').forEach(c=>c.classList.remove('selected'));showScreen('char-screen')}
 
 // Maze
 const MAZE_COLS=21,MAZE_ROWS=15,COINS_TOTAL=5;
@@ -340,9 +341,9 @@ function generateMaze(cols,rows){let grid=Array(rows).fill(null).map(()=>Array(c
 
 function bfs(from,to,grid){let q=[[from]],seen=new Set();seen.add(from[0]+','+from[1]);while(q.length){let path=q.shift(),[cx,cy]=path[path.length-1];if(cx===to[0]&&cy===to[1])return path;for(let[dx,dy]of[[0,-1],[0,1],[-1,0],[1,0]]){let nx=cx+dx,ny=cy+dy,key=nx+','+ny;if(nx>=0&&nx<MAZE_COLS&&ny>=0&&ny<MAZE_ROWS&&grid[ny][nx]===0&&!seen.has(key)){seen.add(key);q.push([...path,[nx,ny]])}}}return null}
 
-let enemies=[],friendlies=[],turnCount=0,freezeTurns=0,coins=0,totalCoins=COINS_TOTAL;
+let enemies=[],friendlies=[],turnCount=0,freezeTurns=0,dashesLeft=3,coins=0,totalCoins=COINS_TOTAL;
 
-function enterPlanet(planetId){currentPlanet=planetId;const p=planets.find(p=>p.id===planetId);mazeGameOver=false;mazeData=generateMaze(MAZE_COLS,MAZE_ROWS);playerPos=[...mazeData.start];coins=0;totalCoins=mazeData.coinPositions.length;turnCount=0;freezeTurns=0;
+function enterPlanet(planetId){currentPlanet=planetId;const p=planets.find(p=>p.id===planetId);mazeGameOver=false;mazeData=generateMaze(MAZE_COLS,MAZE_ROWS);playerPos=[...mazeData.start];coins=0;totalCoins=mazeData.coinPositions.length;turnCount=0;freezeTurns=0;dashesLeft=3;
   enemies=mazeData.enemySpawns.map(([x,y],i)=>{let eid=(selectedChar%4)+1;return{pos:[x,y],charId:eid}});
   const usedIds=new Set([selectedChar,enemies[0]?.charId].filter(Boolean));const availableIds=[1,2,3,4].filter(id=>!usedIds.has(id));
   friendlies=mazeData.friendlySpawns.map(([x,y],i)=>{return{pos:[x,y],charId:availableIds[i]||((usedIds.size+i)%4+1)}});
@@ -395,6 +396,39 @@ function updateCoinTrack(){
   let s=''; for(let i=0;i<totalCoins;i++)s+=i<coins?'🪙':'⭕';
   document.getElementById('coinTrack').textContent=s;
 }
+function dash(){
+  if(!mazeData||mazeGameOver||dashesLeft<=0)return;
+  // Figure out direction from compass or toward nearest target
+  const targets=[...mazeData.coinPositions,...friendlies.map(f=>f.pos)];
+  if(targets.length===0)return;
+  let best=null,bestDist=Infinity;
+  for(let t of targets){const d=Math.abs(t[0]-playerPos[0])+Math.abs(t[1]-playerPos[1]);if(d<bestDist){bestDist=d;best=t}}
+  if(!best)return;
+  let path=bfs(playerPos,best,mazeData.grid);
+  if(!path||path.length<2)return;
+  let moved=false;
+  // Move up to 2 cells along path toward target
+  for(let i=1;i<=2&&i<path.length;i++){
+    const [nx,ny]=path[i];
+    if(mazeData.grid[ny][nx]===0&&!enemies.some(e=>e.pos[0]===nx&&e.pos[1]===ny)){
+      playerPos=[nx,ny];
+      // Collect along the way
+      mazeData.coinPositions=mazeData.coinPositions.filter(([cc,cr])=>{if(cc===nx&&cr===ny){coins++;return false}return true});
+      friendlies=friendlies.filter(f=>{if(f.pos[0]===nx&&f.pos[1]===ny){coins++;freezeTurns=2;return false}return true});
+      moved=true;
+    }else{break}
+  }
+  if(!moved)return;
+  dashesLeft--;
+  document.getElementById('dashBtn').textContent='💨×'+dashesLeft;
+  if(dashesLeft===0)document.getElementById('dashBtn').style.opacity='0.3';
+  document.getElementById('mazeCharName').textContent=charNames[selectedChar]+' · 🪙 '+coins+'/'+totalCoins;
+  updateCompass();updateCoinTrack();
+  if(coins>=totalCoins){mazeGameOver=true;drawMaze();winMaze();return}
+  turnCount++;if(turnCount%3===0)moveEnemies();
+  if(checkCaught()){mazeGameOver=true;drawMaze();loseMaze();return}
+  drawMaze();
+}
 function checkCaught(){for(let e of enemies){if(e.pos[0]===playerPos[0]&&e.pos[1]===playerPos[1])return true}return false}
 function winMaze(){stopMazeTimer();const e=Math.floor((Date.now()-mazeStartTime)/1000),m=Math.floor(e/60),s=e%60;document.getElementById('winTime').textContent=`All coins collected in ${m}m ${s}s with ${charNames[selectedChar]}!`;document.querySelector('.win-icon').textContent='🏆';document.querySelector('.win-title').textContent='YOU ESCAPED!';document.querySelector('.win-title').style.color='#22c55e';document.querySelector('.win-box').style.borderColor='#22c55e';document.querySelector('.win-btn').style.borderColor='#22c55e';document.querySelector('.win-btn').style.color='#22c55e';document.getElementById('winOverlay').classList.add('show')}
 function loseMaze(){stopMazeTimer();document.getElementById('winTime').textContent='The shadows caught you...';document.querySelector('.win-icon').textContent='💀';document.querySelector('.win-title').textContent='CAUGHT!';document.querySelector('.win-title').style.color='#ef4444';document.querySelector('.win-box').style.borderColor='#ef4444';document.querySelector('.win-btn').style.borderColor='#ef4444';document.querySelector('.win-btn').style.color='#ef4444';document.getElementById('winOverlay').classList.add('show')}
@@ -402,7 +436,7 @@ function loseMaze(){stopMazeTimer();document.getElementById('winTime').textConte
 document.addEventListener('keydown',(e)=>{
   if(!document.getElementById('maze-screen').classList.contains('active'))return;
   if(document.getElementById('winOverlay').classList.contains('show')){if(e.key==='Enter'||e.key===' '){document.getElementById('winOverlay').classList.remove('show');goToPlanets()}return}
-  switch(e.key){case'ArrowUp':case'w':case'W':e.preventDefault();movePlayer(0,-1);break;case'ArrowDown':case's':case'S':e.preventDefault();movePlayer(0,1);break;case'ArrowLeft':case'a':case'A':e.preventDefault();movePlayer(-1,0);break;case'ArrowRight':case'd':case'D':e.preventDefault();movePlayer(1,0);break}
+  switch(e.key){case'ArrowUp':case'w':case'W':e.preventDefault();movePlayer(0,-1);break;case'ArrowDown':case's':case'S':e.preventDefault();movePlayer(0,1);break;case'ArrowLeft':case'a':case'A':e.preventDefault();movePlayer(-1,0);break;case'ArrowRight':case'd':case'D':e.preventDefault();movePlayer(1,0);break;case' ':e.preventDefault();dash();break}
 });
 document.getElementById('winOverlay').addEventListener('click',function(e){if(e.target===this){this.classList.remove('show');goToPlanets()}});
 
