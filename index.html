@@ -3,458 +3,380 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Liana's Game — Space</title>
+<title>HOUSES — Galaxy Maze</title>
 <style>
-  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-    background: #000010;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    cursor: default;
+    width: 100vw; height: 100vh; overflow: hidden;
+    font-family: 'Rajdhani', sans-serif; background: #000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative; user-select: none;
   }
 
-  /* ── Nebula backdrop ── */
-  .nebula {
-    position: fixed; inset: 0;
-    background:
-      radial-gradient(ellipse at 20% 50%, rgba(120, 0, 255, 0.25) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 30%, rgba(0, 80, 255, 0.2) 0%, transparent 55%),
-      radial-gradient(ellipse at 50% 80%, rgba(180, 0, 180, 0.18) 0%, transparent 50%),
-      radial-gradient(ellipse at 10% 10%, rgba(0, 200, 255, 0.12) 0%, transparent 40%);
-    animation: nebulaDrift 30s ease-in-out infinite alternate;
-    z-index: 0;
-  }
-  @keyframes nebulaDrift {
-    0%   { transform: scale(1) rotate(0deg); }
-    50%  { transform: scale(1.15) rotate(3deg); }
-    100% { transform: scale(1) rotate(-2deg); }
-  }
+  .bg { position: fixed; inset: 0; background: url('images/space-background.jpg') center/cover no-repeat; filter: brightness(0.45); z-index: 0; }
+  #stars { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
 
-  /* ── Starfield canvas ── */
-  #starfield {
-    position: fixed; inset: 0;
-    z-index: 1;
-  }
+  .screen { position: relative; z-index: 2; display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
+  .screen.active { display: flex; }
 
-  /* ── Planet layer ── */
-  .planets {
-    position: fixed; inset: 0;
-    z-index: 2;
-    pointer-events: none;
+  /* ── SCREEN 1: CHARACTER SELECT ── */
+  #char-screen .content { display: flex; flex-direction: column; align-items: center; gap: 32px; padding: 20px; }
+  .title { font-family: 'Orbitron', sans-serif; font-weight: 900;
+    font-size: clamp(32px, 4.5vw, 56px); text-transform: uppercase; letter-spacing: 8px;
+    background: linear-gradient(180deg, #e0e7ff 0%, #818cf8 50%, #4f46e5 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    filter: drop-shadow(0 0 30px rgba(99,102,241,0.6));
+    animation: titlePulse 3s ease-in-out infinite;
   }
+  @keyframes titlePulse {
+    0%,100% { filter: drop-shadow(0 0 30px rgba(99,102,241,0.6)); }
+    50% { filter: drop-shadow(0 0 50px rgba(129,140,248,0.9)); }
+  }
+  .subtitle { color: rgba(199,210,254,0.8); font-size: clamp(13px, 1.3vw, 16px); font-weight: 300; letter-spacing: 5px; text-transform: uppercase; }
+  .characters { display: grid; grid-template-columns: repeat(4,1fr); gap: clamp(10px, 2vw, 24px); max-width: 1000px; width: 100%; }
+  .char-card { position: relative; aspect-ratio: 3/4; border-radius: 14px; overflow: hidden; cursor: pointer;
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.35s;
+    border: 2px solid rgba(99,102,241,0.3); background: rgba(15,23,42,0.7); backdrop-filter: blur(4px);
+  }
+  .char-card:hover { transform: translateY(-8px) scale(1.04);
+    box-shadow: 0 0 35px rgba(99,102,241,0.45), 0 0 70px rgba(99,102,241,0.15), 0 15px 35px rgba(0,0,0,0.5);
+    border-color: rgba(129,140,248,0.7); z-index: 5;
+  }
+  .char-card::before { content: ''; position: absolute; inset: -2px; border-radius: 16px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef, #6366f1); background-size: 300% 300%;
+    opacity: 0; z-index: -1; transition: opacity 0.35s ease;
+    animation: borderGlow 3s linear infinite paused;
+  }
+  .char-card:hover::before { opacity: 1; animation-play-state: running; }
+  @keyframes borderGlow { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+  .char-card img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+  .char-card:hover img { transform: scale(1.06); }
+  .card-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 14px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.85));
+  }
+  .card-name { font-family: 'Orbitron', sans-serif; font-size: clamp(12px, 1.4vw, 16px); font-weight: 700; color: #e0e7ff; letter-spacing: 2px; }
+  .card-label { font-size: 10px; letter-spacing: 3px; color: rgba(165,180,252,0.7); text-transform: uppercase; margin-top: 3px; }
+  .char-card.selected { transform: translateY(-10px) scale(1.05); border-color: #f0b90b;
+    box-shadow: 0 0 50px rgba(240,185,11,0.5), 0 0 90px rgba(240,185,11,0.15), 0 15px 45px rgba(0,0,0,0.55);
+  }
+  .char-card.selected::before { opacity: 1; animation-play-state: running;
+    background: linear-gradient(135deg, #f0b90b, #f59e0b, #ef4444, #f0b90b); background-size: 300% 300%;
+  }
+  .char-card.selected .card-name { color: #f0b90b; }
+  .select-indicator { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4); background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;
+  }
+  .char-card.selected .select-indicator { border-color: #f0b90b; background: #f0b90b; box-shadow: 0 0 12px rgba(240,185,11,0.6); }
+  .select-indicator::after { content: '✓'; font-size: 13px; font-weight: 700; color: #000; opacity: 0; transform: scale(0); transition: all 0.3s ease; }
+  .char-card.selected .select-indicator::after { opacity: 1; transform: scale(1); }
+  .confirm-btn { font-family: 'Orbitron', sans-serif; font-size: clamp(12px, 1.1vw, 14px); font-weight: 700;
+    letter-spacing: 4px; text-transform: uppercase; padding: 14px 40px; border-radius: 8px;
+    border: 2px solid rgba(99,102,241,0.5); background: rgba(15,23,42,0.8); backdrop-filter: blur(10px);
+    color: rgba(165,180,252,0.5); cursor: pointer; transition: all 0.35s ease; opacity: 0.4; pointer-events: none;
+  }
+  .confirm-btn.active { opacity: 1; pointer-events: auto; color: #e0e7ff; border-color: #f0b90b; box-shadow: 0 0 25px rgba(240,185,11,0.3); animation: btnGlow 2s ease-in-out infinite; }
+  .confirm-btn.active:hover { background: rgba(240,185,11,0.12); border-color: #f0b90b; box-shadow: 0 0 45px rgba(240,185,11,0.5); transform: translateY(-2px); color: #f0b90b; }
+  @keyframes btnGlow { 0%,100%{box-shadow:0 0 25px rgba(240,185,11,0.3)} 50%{box-shadow:0 0 45px rgba(240,185,11,0.55)} }
 
-  .planet {
-    position: absolute;
-    border-radius: 50%;
-    animation: floatPlanet 20s ease-in-out infinite;
+  /* ── SCREEN 2: PLANET SELECTION ── */
+  #planet-screen { justify-content: center; gap: 20px; }
+  .planet-title { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: clamp(22px, 3vw, 36px); color: #e0e7ff; letter-spacing: 6px; text-transform: uppercase;
+    filter: drop-shadow(0 0 20px rgba(129,140,248,0.5));
   }
+  .planet-sub { color: rgba(199,210,254,0.6); font-size: 13px; letter-spacing: 4px; }
+  .restart-btn { font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 3px; margin-top: 4px;
+    padding: 10px 24px; border: 1px solid rgba(99,102,241,0.35); border-radius: 6px;
+    background: rgba(15,23,42,0.5); color: rgba(165,180,252,0.6); cursor: pointer; transition: all 0.3s;
+  }
+  .restart-btn:hover { border-color: rgba(129,140,248,0.6); color: #a5b4fc; background: rgba(99,102,241,0.1); }
+  .planet-field { position: relative; width: clamp(320px, 70vw, 700px); height: clamp(320px, 70vw, 700px); }
+  .sun { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: clamp(50px, 10vw, 90px); height: clamp(50px, 10vw, 90px);
+    border-radius: 50%; background: radial-gradient(circle, #fef08a, #f59e0b 40%, #b45309);
+    box-shadow: 0 0 80px rgba(245,158,11,0.6), 0 0 150px rgba(245,158,11,0.3), 0 0 200px rgba(234,179,8,0.15);
+    z-index: 3; animation: sunPulse 2.5s ease-in-out infinite;
+  }
+  @keyframes sunPulse { 0%,100%{box-shadow:0 0 80px rgba(245,158,11,0.6),0 0 150px rgba(245,158,11,0.3)} 50%{box-shadow:0 0 100px rgba(245,158,11,0.8),0 0 180px rgba(245,158,11,0.4)} }
+  .orbit-ring { position: absolute; top: 50%; left: 50%; border-radius: 50%;
+    border: 1px solid rgba(99,102,241,0.2); transform: translate(-50%,-50%); pointer-events: none;
+  }
+  .planet { position: absolute; border-radius: 50%; cursor: pointer; z-index: 4;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: filter 0.3s, transform 0.3s;
+    animation: orbit linear infinite;
+  }
+  .planet:hover { filter: brightness(1.4); z-index: 6; }
+  .planet-inner { width: 100%; height: 100%; border-radius: 50%; }
+  .planet-label { position: absolute; bottom: -28px; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700;
+    letter-spacing: 2px; white-space: nowrap; color: rgba(224,231,255,0.8); text-shadow: 0 0 10px rgba(0,0,0,0.8);
+    transition: color 0.3s;
+  }
+  .planet:hover .planet-label { color: #fff; text-shadow: 0 0 15px currentColor; }
+  .planet-magmara .planet-inner { background: radial-gradient(circle at 35% 35%, #ef4444, #b91c1c 50%, #7f1d1d); box-shadow: 0 0 25px rgba(239,68,68,0.5), inset 0 0 20px rgba(0,0,0,0.3); }
+  .planet-magmara .planet-label { color: #fca5a5; }
+  .planet-magmara:hover .planet-label { color: #fecaca; }
+  .planet-celestia .planet-inner { background: radial-gradient(circle at 35% 35%, #c084fc, #9333ea 50%, #581c87); box-shadow: 0 0 25px rgba(192,132,252,0.5), inset 0 0 20px rgba(0,0,0,0.3); }
+  .planet-celestia .planet-label { color: #d8b4fe; }
+  .planet-celestia:hover .planet-label { color: #e9d5ff; }
+  .planet-abyssal .planet-inner { background: radial-gradient(circle at 35% 35%, #38bdf8, #0284c7 50%, #0c4a6e); box-shadow: 0 0 25px rgba(56,189,248,0.5), inset 0 0 20px rgba(0,0,0,0.3); }
+  .planet-abyssal .planet-label { color: #7dd3fc; }
+  .planet-abyssal:hover .planet-label { color: #bae6fd; }
+  .planet-ring { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.15); pointer-events: none; }
 
-  /* Planet 1 — large gas giant (top right) */
-  .planet--1 {
-    width: 280px; height: 280px;
-    top: -80px; right: -60px;
-    background: radial-gradient(circle at 40% 35%,
-      #d4a843 0%, #e8c97a 20%, #c4883c 35%, #8b5e2b 50%,
-      #6d3a1a 65%, #3a1a0a 80%, #1a0a05 100%);
-    box-shadow:
-      inset 0 0 60px rgba(255,200,100,0.3),
-      0 0 120px rgba(212,168,67,0.25),
-      0 0 200px rgba(212,168,67,0.1);
-    animation-delay: 0s;
-    animation-duration: 28s;
+  /* ── SCREEN 3: MAZE ── */
+  #maze-screen { justify-content: flex-start; padding-top: 10px; gap: 8px; }
+  .maze-header { display: flex; align-items: center; gap: 20px; width: 90%; max-width: 800px; justify-content: space-between; }
+  .maze-planet-name { font-family: 'Orbitron', sans-serif; font-size: clamp(16px, 2vw, 22px); font-weight: 700; letter-spacing: 3px; }
+  .maze-timer { font-family: 'Orbitron', sans-serif; font-size: 16px; color: rgba(199,210,254,0.8); letter-spacing: 2px; }
+  .maze-char { font-size: 13px; color: rgba(165,180,252,0.6); letter-spacing: 2px; }
+  .back-btn { font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 2px; padding: 8px 20px;
+    border: 1px solid rgba(99,102,241,0.4); border-radius: 6px; background: rgba(15,23,42,0.6); color: rgba(165,180,252,0.7);
+    cursor: pointer; transition: all 0.3s;
   }
-  /* Planet 1 ring */
-  .planet--1::after {
-    content: '';
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 380px; height: 40px;
-    transform: translate(-50%, -50%) rotateX(75deg);
-    border-radius: 50%;
-    border: 6px solid rgba(200,170,100,0.35);
-    box-shadow: 0 0 30px rgba(200,170,100,0.2);
-  }
+  .back-btn:hover { border-color: rgba(129,140,248,0.7); color: #c7d2fe; }
+  #maze-canvas { border-radius: 10px; border: 2px solid rgba(99,102,241,0.3); box-shadow: 0 0 40px rgba(99,102,241,0.2); }
+  .maze-hint-text { color: rgba(165,180,252,0.5); font-size: 12px; letter-spacing: 2px; text-align: center; }
 
-  /* Planet 2 — blue ice planet (bottom left) */
-  .planet--2 {
-    width: 120px; height: 120px;
-    bottom: 60px; left: 80px;
-    background: radial-gradient(circle at 35% 30%,
-      #88ccff 0%, #4499cc 30%, #2266aa 55%, #0a3366 80%, #051a33 100%);
-    box-shadow:
-      inset 0 0 30px rgba(150,210,255,0.4),
-      0 0 80px rgba(100,180,255,0.3);
-    animation-delay: -8s;
-    animation-duration: 24s;
+  .dpad { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 6px; }
+  .dpad-row { display: flex; gap: 4px; }
+  .dpad-btn { width: 44px; height: 44px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.4);
+    background: rgba(15,23,42,0.7); backdrop-filter: blur(8px); color: #818cf8;
+    font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s ease; user-select: none; -webkit-user-select: none;
   }
+  .dpad-btn:hover { background: rgba(99,102,241,0.2); border-color: rgba(129,140,248,0.7); color: #a5b4fc; }
+  .dpad-btn:active { transform: scale(0.92); background: rgba(99,102,241,0.35); box-shadow: 0 0 15px rgba(99,102,241,0.4); }
 
-  /* Planet 3 — small purple planet (mid-left) */
-  .planet--3 {
-    width: 50px; height: 50px;
-    top: 25%; left: 15%;
-    background: radial-gradient(circle at 30% 25%,
-      #dda0ff 0%, #9944cc 40%, #6622aa 70%, #220844 100%);
-    box-shadow:
-      inset 0 0 15px rgba(200,150,255,0.4),
-      0 0 40px rgba(150,100,255,0.3);
-    animation-delay: -15s;
-    animation-duration: 18s;
+  .win-overlay { position: fixed; inset: 0; z-index: 25; background: rgba(0,0,0,0.8);
+    display: none; align-items: center; justify-content: center;
   }
+  .win-overlay.show { display: flex; }
+  .win-box { background: rgba(15,23,42,0.95); border: 2px solid #22c55e; border-radius: 14px;
+    padding: 36px 40px; text-align: center; box-shadow: 0 0 60px rgba(34,197,94,0.3);
+    animation: popIn 0.5s ease;
+  }
+  @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .win-icon { font-size: 50px; margin-bottom: 10px; }
+  .win-title { font-family: 'Orbitron', sans-serif; font-size: 20px; letter-spacing: 4px; color: #22c55e; }
+  .win-time { color: rgba(199,210,254,0.7); font-size: 14px; margin: 8px 0; }
+  .win-btn { margin-top: 16px; font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 3px;
+    padding: 12px 30px; border: 1px solid #22c55e; border-radius: 8px;
+    background: rgba(34,197,94,0.1); color: #22c55e; cursor: pointer; transition: all 0.3s;
+  }
+  .win-btn:hover { background: rgba(34,197,94,0.2); }
 
-  /* Planet 4 — red Mars-like (bottom right) */
-  .planet--4 {
-    width: 70px; height: 70px;
-    bottom: 25%; right: 15%;
-    background: radial-gradient(circle at 35% 30%,
-      #ff7744 0%, #cc4422 40%, #882211 70%, #330a05 100%);
-    box-shadow:
-      inset 0 0 20px rgba(255,150,100,0.3),
-      0 0 50px rgba(255,100,50,0.25);
-    animation-delay: -5s;
-    animation-duration: 22s;
+  .music-control { position: fixed; top: 16px; right: 16px; z-index: 30; width: 44px; height: 44px;
+    border-radius: 50%; border: 1px solid rgba(99,102,241,0.4); background: rgba(15,23,42,0.5);
+    backdrop-filter: blur(10px); color: #818cf8; cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.3s;
   }
+  .music-control:hover { border-color: rgba(129,140,248,0.7); box-shadow: 0 0 18px rgba(99,102,241,0.35); }
+  .music-control.muted { color: rgba(99,102,241,0.3); }
 
-  @keyframes floatPlanet {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    25%      { transform: translate(15px, -20px) rotate(5deg); }
-    50%      { transform: translate(-10px, 10px) rotate(-3deg); }
-    75%      { transform: translate(8px, -8px) rotate(4deg); }
-  }
-
-  /* ── Shooting stars ── */
-  .shooting-star {
-    position: fixed;
-    z-index: 3;
-    pointer-events: none;
-  }
-  .shooting-star::before {
-    content: '';
-    display: block;
-    width: 3px;
-    height: 80px;
-    background: linear-gradient(to bottom, rgba(255,255,255,1), rgba(255,255,255,0));
-    border-radius: 2px;
-    box-shadow: 0 0 6px 2px rgba(255,255,255,0.6);
-    animation: shoot 2s ease-out;
-    opacity: 0;
-  }
-  @keyframes shoot {
-    0%   { opacity: 1; transform: translate(0, 0) rotate(-35deg) scaleY(1); }
-    50%  { opacity: 0.8; transform: translate(200px, 200px) rotate(-35deg) scaleY(0.3); }
-    100% { opacity: 0; transform: translate(500px, 500px) rotate(-35deg) scaleY(0); }
-  }
-
-  /* ── Content overlay ── */
-  .content {
-    position: fixed; inset: 0;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-  }
-  .content h1 {
-    font-size: clamp(2rem, 6vw, 5rem);
-    font-weight: 700;
-    background: linear-gradient(135deg, #d4a843, #f0d78c, #d4a843);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: none;
-    letter-spacing: 0.05em;
-    filter: drop-shadow(0 0 30px rgba(212,168,67,0.4));
-  }
-  .content .subtitle {
-    margin-top: 0.5em;
-    font-size: clamp(0.9rem, 2vw, 1.4rem);
-    color: rgba(255,255,255,0.5);
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-  }
-
-  /* ── Audio toggle ── */
-  .audio-toggle {
-    position: fixed;
-    bottom: 24px; right: 24px;
-    z-index: 20;
-    width: 48px; height: 48px;
-    border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.2);
-    background: rgba(255,255,255,0.05);
-    backdrop-filter: blur(10px);
-    color: rgba(255,255,255,0.7);
-    font-size: 22px;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.3s;
-    pointer-events: all;
-  }
-  .audio-toggle:hover {
-    border-color: rgba(255,255,255,0.5);
-    color: #fff;
-    box-shadow: 0 0 20px rgba(255,255,255,0.15);
-  }
-  .audio-toggle.muted { opacity: 0.4; }
+  @media (max-width: 768px) { .characters { grid-template-columns: repeat(2,1fr); gap: 12px; } }
 </style>
 </head>
 <body>
 
-<!-- Nebula backdrop -->
-<div class="nebula"></div>
+<div class="bg"></div>
+<canvas id="stars"></canvas>
+<button class="music-control" id="musicBtn" title="Toggle Music">♪</button>
 
-<!-- Interactive starfield -->
-<canvas id="starfield"></canvas>
-
-<!-- Planets -->
-<div class="planets">
-  <div class="planet planet--1"></div>
-  <div class="planet planet--2"></div>
-  <div class="planet planet--3"></div>
-  <div class="planet planet--4"></div>
+<!-- SCREEN 1 -->
+<div class="screen active" id="char-screen">
+  <div class="content">
+    <h1 class="title">Choose Your Fighter</h1>
+    <p class="subtitle">Select a character to begin</p>
+    <div class="characters" id="charGrid">
+      <div class="char-card" data-id="1" onclick="selectChar(1)">
+        <img src="images/character-1.jpg" alt="SPEEDSTER">
+        <div class="select-indicator"></div>
+        <div class="card-overlay"><div class="card-name">SPEEDSTER</div><div class="card-label">⚡ Lightning Dash</div></div>
+      </div>
+      <div class="char-card" data-id="2" onclick="selectChar(2)">
+        <img src="images/character-2.jpg" alt="HIPSTER">
+        <div class="select-indicator"></div>
+        <div class="card-overlay"><div class="card-name">HIPSTER</div><div class="card-label">💜 Gravity Bender</div></div>
+      </div>
+      <div class="char-card" data-id="3" onclick="selectChar(3)">
+        <img src="images/character-3.jpg" alt="ENGINEER">
+        <div class="select-indicator"></div>
+        <div class="card-overlay"><div class="card-name">ENGINEER</div><div class="card-label">🛠️ Tech Construct</div></div>
+      </div>
+      <div class="char-card" data-id="4" onclick="selectChar(4)">
+        <img src="images/character-4.jpg" alt="SHADOW">
+        <div class="select-indicator"></div>
+        <div class="card-overlay"><div class="card-name">SHADOW</div><div class="card-label">🌑 Phase Shift</div></div>
+      </div>
+    </div>
+    <button class="confirm-btn" id="confirmBtn" onclick="confirmSelection()">Lock In</button>
+    <p style="color:rgba(165,180,252,0.4);font-size:11px;letter-spacing:2px;margin-top:-16px;">Keyboard: 1-4 to pick · Enter to lock</p>
+  </div>
 </div>
 
-<!-- Content overlay -->
-<div class="content">
-  <h1>Liana's Game</h1>
-  <p class="subtitle">✦ &nbsp;Explore the Cosmos &nbsp;✦</p>
+<!-- SCREEN 2 -->
+<div class="screen" id="planet-screen">
+  <h2 class="planet-title">Navigate the Galaxy</h2>
+  <p class="planet-sub" style="margin-bottom:10px;">Choose a planet to explore</p>
+  <div class="planet-field" id="planetField">
+    <div class="sun"></div>
+  </div>
+  <p style="color:rgba(165,180,252,0.4);font-size:12px;letter-spacing:2px;">Click a planet to enter its maze</p>
+  <button class="restart-btn" onclick="restartGame()">↩ CHANGE CHARACTER</button>
 </div>
 
-<!-- Audio toggle -->
-<button class="audio-toggle" id="audioBtn" title="Toggle space ambience">🔇</button>
+<!-- SCREEN 3 -->
+<div class="screen" id="maze-screen">
+  <div class="maze-header">
+    <span class="maze-planet-name" id="mazePlanetName"></span>
+    <span class="maze-char" id="mazeCharName"></span>
+    <span class="maze-timer" id="mazeTimer">00:00</span>
+    <button class="back-btn" onclick="goToPlanets()">← BACK</button>
+    <button class="back-btn" onclick="restartGame()" style="border-color:rgba(239,68,68,0.3);color:rgba(252,165,165,0.6);">↩ RESTART</button>
+  </div>
+  <canvas id="maze-canvas"></canvas>
+  <p class="maze-hint-text">Arrow Keys / WASD to move · Collect all <span style="color:#fbbf24;">★</span> coins · Avoid <span style="color:#ef4444;">enemies</span>!</p>
+  <div class="dpad">
+    <button class="dpad-btn dpad-up" onclick="movePlayer(0,-1)">▲</button>
+    <div class="dpad-row">
+      <button class="dpad-btn dpad-left" onclick="movePlayer(-1,0)">◀</button>
+      <button class="dpad-btn dpad-right" onclick="movePlayer(1,0)">▶</button>
+    </div>
+    <button class="dpad-btn dpad-down" onclick="movePlayer(0,1)">▼</button>
+  </div>
+</div>
+
+<div class="win-overlay" id="winOverlay">
+  <div class="win-box">
+    <div class="win-icon">🏆</div>
+    <div class="win-title">EXIT FOUND!</div>
+    <div class="win-time" id="winTime"></div>
+    <button class="win-btn" onclick="goToPlanets()">BACK TO GALAXY</button>
+  </div>
+</div>
+
+<audio id="bgm" loop preload="auto">
+  <source src="sound/galactic-velocity-rush.mp3" type="audio/mpeg">
+</audio>
 
 <script>
-  // ═══════════════════════════════════════════
-  //  STARFIELD — twinkling stars on canvas
-  // ═══════════════════════════════════════════
-  const canvas = document.getElementById('starfield');
-  const ctx = canvas.getContext('2d');
+let selectedChar = null, locked = false, musicPlaying = false;
+let currentPlanet = null, mazeData = null, playerPos = null, mazeStartTime = null, mazeTimerInterval = null;
+const charNames = { 1: 'SPEEDSTER', 2: 'HIPSTER', 3: 'ENGINEER', 4: 'SHADOW' };
+const charColors = { 1: '#ef4444', 2: '#c084fc', 3: '#22c55e', 4: '#38bdf8' };
 
-  let stars = [];
-  const STAR_COUNT = 300;
+// Stars
+const starsCanvas = document.getElementById('stars'), sctx = starsCanvas.getContext('2d');
+let starsArr = [];
+function rs() { starsCanvas.width = innerWidth; starsCanvas.height = innerHeight; }
+rs(); window.addEventListener('resize', rs);
+for (let i=0;i<120;i++) starsArr.push({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.8+0.5,b:Math.random(),s:Math.random()*0.015+0.003,d:Math.random()>0.5?1:-1});
+(function ds(){sctx.clearRect(0,0,starsCanvas.width,starsCanvas.height);for(let s of starsArr){s.b+=s.s*s.d;if(s.b>=1){s.b=1;s.d=-1}if(s.b<=0.1){s.b=0.1;s.d=1}let a=s.b*0.8;sctx.beginPath();sctx.arc(s.x,s.y,s.r,0,Math.PI*2);sctx.fillStyle=`rgba(199,210,254,${a})`;sctx.fill();if(s.b>0.8){sctx.beginPath();sctx.arc(s.x,s.y,s.r*2.5,0,Math.PI*2);sctx.fillStyle=`rgba(165,180,252,${a*0.15})`;sctx.fill()}}requestAnimationFrame(ds)})();
 
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  window.addEventListener('resize', resize);
-  resize();
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 
-  // Create stars
-  for (let i = 0; i < STAR_COUNT; i++) {
-    stars.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 2.5 + 0.5,
-      brightness: Math.random(),
-      speed: Math.random() * 0.02 + 0.005,
-      hue: Math.random() < 0.15
-        ? Math.random() < 0.5 ? 220 : 40  // blue or gold tint
-        : 0  // white
-    });
-  }
+// Character select
+function selectChar(id) {
+  document.querySelectorAll('.char-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelector(`[data-id="${id}"]`).classList.add('selected');
+  selectedChar = id; const btn = document.getElementById('confirmBtn'); btn.classList.add('active');
+  btn.textContent = locked ? 'CHANGED — LOCK IN' : 'LOCK IN';
+}
+function confirmSelection() {
+  if (!selectedChar) return; const btn = document.getElementById('confirmBtn');
+  if (!locked) { locked=true; btn.textContent='✓ '+charNames[selectedChar]+' — CLICK TO CHANGE';
+    btn.style.animation='none';btn.style.borderColor='#22c55e';btn.style.color='#22c55e';btn.style.boxShadow='0 0 35px rgba(34,197,94,0.5)';
+    setTimeout(()=>goToPlanets(),600);
+  } else { locked=false;btn.classList.add('active');btn.textContent='LOCK IN';
+    btn.style.animation='';btn.style.borderColor='';btn.style.color='';btn.style.boxShadow=''; }
+}
+document.addEventListener('keydown',(e)=>{
+  if(!document.getElementById('char-screen').classList.contains('active'))return;
+  if(e.key>='1'&&e.key<='4')selectChar(parseInt(e.key));
+  if(e.key==='Enter'&&selectedChar)confirmSelection();
+});
 
-  function drawStars() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+// Planets
+const planets=[
+  {id:'magmara',name:'MAGMARA',cls:'planet-magmara',size:62,orbit:0.33,speed:18,desc:'Volcanic Forge World',icon:'🌋'},
+  {id:'celestia',name:'CELESTIA',cls:'planet-celestia',size:56,orbit:0.58,speed:24,desc:'Crystal Nebula',icon:'💎'},
+  {id:'abyssal',name:'ABYSSAL',cls:'planet-abyssal',size:50,orbit:0.82,speed:30,desc:'Frozen Void',icon:'❄️'}
+];
+let planetAngles=[0,Math.PI*0.7,Math.PI*1.4];
+function buildPlanets(){const f=document.getElementById('planetField');f.querySelectorAll('.planet,.orbit-ring').forEach(e=>e.remove());
+  planets.forEach(p=>{const o=document.createElement('div');o.className='orbit-ring';const s=p.orbit*Math.min(f.offsetWidth,f.offsetHeight);o.style.width=o.style.height=s+'px';f.appendChild(o)});
+  const cx=f.offsetWidth/2,cy=f.offsetHeight/2;
+  planets.forEach((p,i)=>{const el=document.createElement('div');el.className='planet '+p.cls;el.style.width=el.style.height=p.size+'px';el.style.top=(cy-p.size/2)+'px';el.style.left=(cx-p.size/2)+'px';el.style.transformOrigin=`${p.size/2}px ${p.size/2}px`;el.innerHTML=`<div class="planet-inner"></div><div class="planet-ring"></div><span class="planet-label">${p.name}</span>`;el.addEventListener('click',()=>enterPlanet(p.id));el.dataset.planetId=p.id;f.appendChild(el)});
+  const sun=f.querySelector('.sun');if(sun){sun.style.top=(cy-sun.offsetHeight/2)+'px';sun.style.left=(cx-sun.offsetWidth/2)+'px'}
+  requestAnimationFrame(ap);
+}
+function ap(){const f=document.getElementById('planetField');if(!document.getElementById('planet-screen').classList.contains('active')){requestAnimationFrame(ap);return}const cx=f.offsetWidth/2,cy=f.offsetHeight/2;planets.forEach((p,i)=>{planetAngles[i]+=0.002*(24/p.speed);const oR=(p.orbit*Math.min(f.offsetWidth,f.offsetHeight))/2;const px=cx+Math.cos(planetAngles[i])*oR-p.size/2,py=cy+Math.sin(planetAngles[i])*oR-p.size/2;const el=f.querySelector(`[data-planet-id="${p.id}"]`);if(el){el.style.left=px+'px';el.style.top=py+'px'}});requestAnimationFrame(ap)}
+function goToPlanets(){stopMazeTimer();document.getElementById('winOverlay').classList.remove('show');showScreen('planet-screen');setTimeout(buildPlanets,50)}
+function restartGame(){stopMazeTimer();document.getElementById('winOverlay').classList.remove('show');selectedChar=null;locked=false;friendlies=[];turnCount=0;document.getElementById('confirmBtn').classList.remove('active');document.getElementById('confirmBtn').textContent='Lock In';document.getElementById('confirmBtn').style.animation='';document.getElementById('confirmBtn').style.borderColor='';document.getElementById('confirmBtn').style.color='';document.getElementById('confirmBtn').style.boxShadow='';document.querySelectorAll('.char-card').forEach(c=>c.classList.remove('selected'));showScreen('char-screen')}
 
-    for (const s of stars) {
-      // Twinkle
-      s.brightness += s.speed;
-      if (s.brightness > 1 || s.brightness < 0) s.speed *= -1;
+// Maze
+const MAZE_COLS=21,MAZE_ROWS=15,COINS_TOTAL=8;
+let mazeGameOver=false,mazeCellSize=32;
+const charImgs={1:null,2:null,3:null,4:null};
+(function pci(){for(let i=1;i<=4;i++){if(!charImgs[i]){charImgs[i]=new Image();charImgs[i].src=`images/character-${i}.jpg`}}})();
 
-      const alpha = 0.3 + s.brightness * 0.7;
+function generateMaze(cols,rows){let grid=Array(rows).fill(null).map(()=>Array(cols).fill(1));let visited=Array(rows).fill(null).map(()=>Array(cols).fill(false));
+  function carve(cx,cy){grid[cy][cx]=0;visited[cy][cx]=true;let dirs=[[0,-2],[2,0],[0,2],[-2,0]];dirs.sort(()=>Math.random()-0.5);for(let[dx,dy]of dirs){let nx=cx+dx,ny=cy+dy;if(nx>=0&&nx<cols&&ny>=0&&ny<rows&&!visited[ny][nx]){grid[cy+dy/2][cx+dx/2]=0;carve(nx,ny)}}}
+  carve(1,1);let passages=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)if(grid[r][c]===0)passages.push([c,r]);passages.sort(()=>Math.random()-0.5);
+  let start=passages.find(([c,r])=>c<cols/3&&r<rows/3)||passages[0];passages=passages.filter(p=>!(p[0]===start[0]&&p[1]===start[1]));
+  let coinPositions=[],pool=[...passages];pool.sort(()=>Math.random()-0.5);for(let[c,r]of pool){if(coinPositions.length>=COINS_TOTAL)break;let tooClose=coinPositions.some(([cc,cr])=>Math.abs(c-cc)+Math.abs(r-cr)<5);if(!tooClose)coinPositions.push([c,r])}
+  let enemySpawns=[],farPool=passages.filter(([c,r])=>Math.abs(c-start[0])+Math.abs(r-start[1])>8);farPool.sort(()=>Math.random()-0.5);for(let[c,r]of farPool){if(enemySpawns.length>=1)break;enemySpawns.push([c,r])}
+  let friendlySpawns=[];for(let[c,r]of farPool){if(friendlySpawns.length>=2)break;let tooClose=enemySpawns.some(([ec,er])=>Math.abs(c-ec)+Math.abs(r-er)<6)||friendlySpawns.some(([fc,fr])=>Math.abs(c-fc)+Math.abs(r-fr)<6);if(!tooClose)friendlySpawns.push([c,r])}
+  return{grid,start,coinPositions,enemySpawns,friendlySpawns};
+}
 
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+function bfs(from,to,grid){let q=[[from]],seen=new Set();seen.add(from[0]+','+from[1]);while(q.length){let path=q.shift(),[cx,cy]=path[path.length-1];if(cx===to[0]&&cy===to[1])return path;for(let[dx,dy]of[[0,-1],[0,1],[-1,0],[1,0]]){let nx=cx+dx,ny=cy+dy,key=nx+','+ny;if(nx>=0&&nx<MAZE_COLS&&ny>=0&&ny<MAZE_ROWS&&grid[ny][nx]===0&&!seen.has(key)){seen.add(key);q.push([...path,[nx,ny]])}}}return null}
 
-      if (s.hue > 0) {
-        ctx.fillStyle = `hsla(${s.hue}, 80%, 80%, ${alpha})`;
-      } else {
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-      }
+let enemies=[],friendlies=[],turnCount=0,coins=0,totalCoins=COINS_TOTAL;
 
-      // Glow on bright stars
-      if (s.r > 1.5 && s.brightness > 0.7) {
-        ctx.shadowBlur = s.r * 4;
-        ctx.shadowColor = s.hue ? `hsla(${s.hue}, 80%, 80%, 0.8)` : 'rgba(255,255,255,0.8)';
-      } else {
-        ctx.shadowBlur = 0;
-      }
+function enterPlanet(planetId){currentPlanet=planetId;const p=planets.find(p=>p.id===planetId);mazeGameOver=false;mazeData=generateMaze(MAZE_COLS,MAZE_ROWS);playerPos=[...mazeData.start];coins=0;totalCoins=mazeData.coinPositions.length;turnCount=0;
+  enemies=mazeData.enemySpawns.map(([x,y],i)=>{let eid=(selectedChar%4)+1;return{pos:[x,y],charId:eid}});
+  const usedIds=new Set([selectedChar,enemies[0]?.charId].filter(Boolean));const availableIds=[1,2,3,4].filter(id=>!usedIds.has(id));
+  friendlies=mazeData.friendlySpawns.map(([x,y],i)=>{return{pos:[x,y],charId:availableIds[i]||((usedIds.size+i)%4+1)}});
+  document.getElementById('mazePlanetName').textContent=p.icon+' '+p.name;document.getElementById('mazePlanetName').style.color=p.id==='magmara'?'#fca5a5':p.id==='celestia'?'#d8b4fe':'#7dd3fc';
+  document.getElementById('mazeCharName').textContent=charNames[selectedChar]+' · 🪙 '+coins+'/'+totalCoins;document.getElementById('mazeCharName').style.color=charColors[selectedChar];
+  showScreen('maze-screen');setTimeout(drawMaze,60);startMazeTimer();
+}
 
-      ctx.fill();
-    }
-    ctx.shadowBlur = 0;
+function startMazeTimer(){stopMazeTimer();mazeStartTime=Date.now();document.getElementById('mazeTimer').textContent='00:00';mazeTimerInterval=setInterval(()=>{const e=Math.floor((Date.now()-mazeStartTime)/1000);document.getElementById('mazeTimer').textContent=Math.floor(e/60).toString().padStart(2,'0')+':'+(e%60).toString().padStart(2,'0')},250)}
+function stopMazeTimer(){if(mazeTimerInterval){clearInterval(mazeTimerInterval);mazeTimerInterval=null}}
 
-    requestAnimationFrame(drawStars);
-  }
-  drawStars();
+function drawMaze(){const c=document.getElementById('maze-canvas'),mw=Math.min(innerWidth*0.9,750),mh=Math.min(innerHeight*0.62,520);mazeCellSize=Math.floor(Math.min(mw/MAZE_COLS,mh/MAZE_ROWS));c.width=mazeCellSize*MAZE_COLS;c.height=mazeCellSize*MAZE_ROWS;const ctx=c.getContext('2d'),cs=mazeCellSize,{grid,coinPositions}=mazeData;
+  for(let r=0;r<MAZE_ROWS;r++)for(let cc=0;cc<MAZE_COLS;cc++){const x=cc*cs,y=r*cs;if(grid[r][cc]===1){ctx.fillStyle='#1b1a3b';ctx.fillRect(x,y,cs,cs);ctx.fillStyle='#2d2a5e';ctx.fillRect(x+1,y+1,cs-2,cs-2)}else{ctx.fillStyle='#08081a';ctx.fillRect(x,y,cs,cs);ctx.strokeStyle='rgba(45,42,94,0.12)';ctx.strokeRect(x,y,cs,cs)}}
+  for(let[cc,cr]of coinPositions){const cx=cc*cs+cs/2,cy2=cr*cs+cs/2,size=cs*0.3;const g=ctx.createRadialGradient(cx,cy2,size*0.1,cx,cy2,size*1.4);g.addColorStop(0,'#fbbf24');g.addColorStop(0.6,'rgba(251,191,36,0.3)');g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy2,size*1.4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(cx,cy2,size,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fef3c7';ctx.beginPath();ctx.arc(cx,cy2,size*0.5,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fbbf24';ctx.font=`${cs*0.28}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('★',cx,cy2)}
+  for(let e of enemies)drawCharOnMaze(ctx,e.pos[0],e.pos[1],e.charId,cs,false);
+  for(let f of friendlies)drawCharOnMaze(ctx,f.pos[0],f.pos[1],f.charId,cs,'friendly');
+  drawCharOnMaze(ctx,playerPos[0],playerPos[1],selectedChar,cs,true);
+  const[sx,sy]=mazeData.start;ctx.fillStyle='rgba(255,255,255,0.06)';ctx.fillRect(sx*cs+2,sy*cs+2,cs-4,cs-4);
+}
 
-  // Mouse parallax — stars shift slightly
-  document.addEventListener('mousemove', (e) => {
-    const dx = (e.clientX / window.innerWidth - 0.5) * 4;
-    const dy = (e.clientY / window.innerHeight - 0.5) * 4;
-    document.querySelector('.planets').style.transform =
-      `translate(${dx}px, ${dy}px)`;
-    canvas.style.transform = `translate(${dx * 0.3}px, ${dy * 0.3}px)`;
-  });
+function drawCharOnMaze(ctx,cx,cy,charId,cs,role){const x=cx*cs,y=cy*cs,pad=cs*0.1,size=cs-pad*2,img=charImgs[charId],gx=x+cs/2,gy=y+cs/2;const glowColor=role===true?charColors[charId]:role==='friendly'?'rgba(34,197,94,0.5)':'rgba(255,60,60,0.5)',borderColor=role===true?charColors[charId]:role==='friendly'?'#22c55e':'#ef4444',gr=cs*0.55;const g=ctx.createRadialGradient(gx,gy,gr*0.2,gx,gy,gr);g.addColorStop(0,glowColor);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(gx,gy,gr,0,Math.PI*2);ctx.fill();if(img&&img.complete&&img.naturalWidth>0){ctx.save();ctx.beginPath();ctx.arc(gx,gy,size/2,0,Math.PI*2);ctx.clip();ctx.drawImage(img,x+pad,y+pad,size,size);ctx.restore();ctx.strokeStyle=borderColor;ctx.lineWidth=2;ctx.beginPath();ctx.arc(gx,gy,size/2,0,Math.PI*2);ctx.stroke()}else{ctx.fillStyle=borderColor;ctx.beginPath();ctx.arc(gx,gy,size/2,0,Math.PI*2);ctx.fill()}const labels={1:'SPEED',2:'HIP',3:'ENG',4:'SHAD'},label=role===true?'YOU':role==='friendly'?labels[charId]+' ✦':labels[charId];ctx.fillStyle=role===true?'#fff':role==='friendly'?'#4ade80':'#fca5a5';ctx.font=`bold ${Math.max(8,cs*0.18)}px Orbitron`;ctx.textAlign='center';ctx.fillText(label,gx,y+cs+Math.max(10,cs*0.2))}
 
-  // ═══════════════════════════════════════════
-  //  SHOOTING STARS — occasional
-  // ═══════════════════════════════════════════
-  function spawnShootingStar() {
-    const star = document.createElement('div');
-    star.className = 'shooting-star';
-    star.style.top = Math.random() * 40 + '%';
-    star.style.left = Math.random() * 60 + '%';
-    document.body.appendChild(star);
+function movePlayer(dx,dy){if(!mazeData||mazeGameOver)return;const[cx,cy]=playerPos,nx=cx+dx,ny=cy+dy;if(nx<0||nx>=MAZE_COLS||ny<0||ny>=MAZE_ROWS)return;if(mazeData.grid[ny][nx]===1)return;playerPos=[nx,ny];mazeData.coinPositions=mazeData.coinPositions.filter(([cc,cr])=>{if(cc===nx&&cr===ny){coins++;return false}return true});document.getElementById('mazeCharName').textContent=charNames[selectedChar]+' · 🪙 '+coins+'/'+totalCoins;if(mazeData.coinPositions.length===0){mazeGameOver=true;drawMaze();winMaze();return}turnCount++;if(turnCount%2===0)moveEnemies();if(checkCaught()){mazeGameOver=true;drawMaze();loseMaze();return}drawMaze()}
+function moveEnemies(){for(let e of enemies){let path=bfs(e.pos,playerPos,mazeData.grid);if(path&&path.length>=2)e.pos=path[1]}}
+function checkCaught(){for(let e of enemies){if(e.pos[0]===playerPos[0]&&e.pos[1]===playerPos[1])return true}return false}
+function winMaze(){stopMazeTimer();const e=Math.floor((Date.now()-mazeStartTime)/1000),m=Math.floor(e/60),s=e%60;document.getElementById('winTime').textContent=`All coins collected in ${m}m ${s}s with ${charNames[selectedChar]}!`;document.querySelector('.win-icon').textContent='🏆';document.querySelector('.win-title').textContent='YOU ESCAPED!';document.querySelector('.win-title').style.color='#22c55e';document.querySelector('.win-box').style.borderColor='#22c55e';document.querySelector('.win-btn').style.borderColor='#22c55e';document.querySelector('.win-btn').style.color='#22c55e';document.getElementById('winOverlay').classList.add('show')}
+function loseMaze(){stopMazeTimer();document.getElementById('winTime').textContent='The shadows caught you...';document.querySelector('.win-icon').textContent='💀';document.querySelector('.win-title').textContent='CAUGHT!';document.querySelector('.win-title').style.color='#ef4444';document.querySelector('.win-box').style.borderColor='#ef4444';document.querySelector('.win-btn').style.borderColor='#ef4444';document.querySelector('.win-btn').style.color='#ef4444';document.getElementById('winOverlay').classList.add('show')}
 
-    // Remove after animation
-    setTimeout(() => star.remove(), 2200);
-  }
+document.addEventListener('keydown',(e)=>{
+  if(!document.getElementById('maze-screen').classList.contains('active'))return;
+  if(document.getElementById('winOverlay').classList.contains('show')){if(e.key==='Enter'||e.key===' '){document.getElementById('winOverlay').classList.remove('show');goToPlanets()}return}
+  switch(e.key){case'ArrowUp':case'w':case'W':e.preventDefault();movePlayer(0,-1);break;case'ArrowDown':case's':case'S':e.preventDefault();movePlayer(0,1);break;case'ArrowLeft':case'a':case'A':e.preventDefault();movePlayer(-1,0);break;case'ArrowRight':case'd':case'D':e.preventDefault();movePlayer(1,0);break}
+});
+document.getElementById('winOverlay').addEventListener('click',function(e){if(e.target===this){this.classList.remove('show');goToPlanets()}});
 
-  // Spawn every 4-10 seconds
-  function scheduleShootingStar() {
-    spawnShootingStar();
-    setTimeout(scheduleShootingStar, Math.random() * 6000 + 4000);
-  }
-  scheduleShootingStar();
-
-  // ═══════════════════════════════════════════
-  //  WEB AUDIO API — space ambient synthesizer
-  //  No file loading needed — 100% reliable
-  // ═══════════════════════════════════════════
-  const audioBtn = document.getElementById('audioBtn');
-  let audioCtx = null;
-  let audioPlaying = false;
-  let masterGain = null;
-  let oscillators = [];
-  let lfoNodes = [];
-
-  function createSpaceAmbient() {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    masterGain = audioCtx.createGain();
-    masterGain.gain.value = 0;
-    masterGain.connect(audioCtx.destination);
-
-    // Ramp volume up smoothly
-    masterGain.gain.setTargetAtTime(0.3, audioCtx.currentTime, 1.5);
-
-    // Helper: create an oscillator with envelope + LFO
-    function createDrone(freq, vol, type = 'sine', detune = 0, lfoFreq = 0, lfoDepth = 0) {
-      const osc = audioCtx.createOscillator();
-      osc.type = type;
-      osc.frequency.value = freq;
-      osc.detune.value = detune;
-
-      const gain = audioCtx.createGain();
-      gain.gain.value = vol;
-
-      osc.connect(gain);
-
-      if (lfoFreq > 0) {
-        const lfo = audioCtx.createOscillator();
-        lfo.type = 'sine';
-        lfo.frequency.value = lfoFreq;
-        const lfoGain = audioCtx.createGain();
-        lfoGain.gain.value = lfoDepth;
-        lfo.connect(lfoGain);
-        lfoGain.connect(gain.gain);
-        lfo.start();
-        lfoNodes.push(lfo);
-      }
-
-      gain.connect(masterGain);
-      osc.start();
-      oscillators.push({ osc, gain });
-      return { osc, gain };
-    }
-
-    // Deep rumble ~30Hz
-    createDrone(30, 0.25, 'sine', 0, 0.15, 0.1);
-    // Mid drone ~80Hz with slow amplitude modulation
-    createDrone(80, 0.18, 'sine', 5, 0.08, 0.12);
-    // Higher shimmer ~200Hz
-    createDrone(200, 0.05, 'triangle', -5, 0.12, 0.03);
-    // Slow sweep drone ~55Hz
-    createDrone(55, 0.1, 'sine', 0, 0.05, 15);
-    // High crystalline ~800Hz
-    createDrone(800, 0.025, 'sine', 3, 0.7, 0.01);
-    // Very high sparkle ~4000Hz
-    createDrone(4000, 0.004, 'sine', 0, 0.03, 0.002);
-
-    // White noise (space wind) through bandpass
-    try {
-      const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
-      const data = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
-      const noise = audioCtx.createBufferSource();
-      noise.buffer = noiseBuffer;
-      noise.loop = true;
-      const bandpass = audioCtx.createBiquadFilter();
-      bandpass.type = 'bandpass';
-      bandpass.frequency.value = 400;
-      bandpass.Q.value = 0.8;
-      const noiseGain = audioCtx.createGain();
-      noiseGain.gain.value = 0.02;
-      // Modulate noise volume
-      const noiseLfo = audioCtx.createOscillator();
-      noiseLfo.frequency.value = 0.02;
-      const noiseLfoGain = audioCtx.createGain();
-      noiseLfoGain.gain.value = 0.01;
-      noiseLfo.connect(noiseLfoGain);
-      noiseLfoGain.connect(noiseGain.gain);
-      noiseLfo.start();
-      lfoNodes.push(noiseLfo);
-
-      noise.connect(bandpass);
-      bandpass.connect(noiseGain);
-      noiseGain.connect(masterGain);
-      noise.start();
-      oscillators.push({ osc: noise, gain: noiseGain });
-    } catch (e) { /* noise optional */ }
-  }
-
-  function destroySpaceAmbient() {
-    // Fade out
-    if (masterGain && audioCtx) {
-      masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.8);
-    }
-    setTimeout(() => {
-      for (const o of oscillators) {
-        try { o.osc.stop(); } catch (e) {}
-      }
-      for (const l of lfoNodes) {
-        try { l.stop(); } catch (e) {}
-      }
-      oscillators = [];
-      lfoNodes = [];
-      if (audioCtx && audioCtx.state !== 'closed') {
-        audioCtx.close();
-      }
-      audioCtx = null;
-      masterGain = null;
-    }, 900);
-  }
-
-  audioBtn.addEventListener('click', () => {
-    if (audioPlaying) {
-      destroySpaceAmbient();
-      audioPlaying = false;
-      audioBtn.textContent = '🔇';
-      audioBtn.classList.add('muted');
-    } else {
-      createSpaceAmbient();
-      audioPlaying = true;
-      audioBtn.textContent = '🔊';
-      audioBtn.classList.remove('muted');
-    }
-  });
+// Music
+const bgm=document.getElementById('bgm');bgm.volume=0.35;const musicBtn=document.getElementById('musicBtn');
+musicBtn.addEventListener('click',()=>{if(musicPlaying){bgm.pause();musicBtn.classList.add('muted');musicBtn.textContent='♪'}else{bgm.play().catch(()=>{});musicBtn.classList.remove('muted');musicBtn.textContent='♫'}musicPlaying=!musicPlaying});
+document.addEventListener('click',()=>{if(!musicPlaying){bgm.play().then(()=>{musicPlaying=true;musicBtn.textContent='♫'}).catch(()=>{})}},{once:true});
 </script>
-
 </body>
 </html>
