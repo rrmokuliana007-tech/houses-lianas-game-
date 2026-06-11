@@ -234,6 +234,8 @@
     <span class="maze-planet-name" id="mazePlanetName"></span>
     <span class="maze-char" id="mazeCharName"></span>
     <span class="maze-timer" id="mazeTimer">00:00</span>
+    <span id="compass" style="font-size:20px;"></span>
+    <span id="coinTrack" style="font-size:16px;letter-spacing:2px;"></span>
     <button class="back-btn" onclick="goToPlanets()">← BACK</button>
     <button class="back-btn" onclick="restartGame()" style="border-color:rgba(239,68,68,0.3);color:rgba(252,165,165,0.6);">↩ RESTART</button>
   </div>
@@ -318,7 +320,7 @@ function goToPlanets(){stopMazeTimer();document.getElementById('winOverlay').cla
 function restartGame(){stopMazeTimer();document.getElementById('winOverlay').classList.remove('show');selectedChar=null;locked=false;friendlies=[];turnCount=0;document.getElementById('confirmBtn').classList.remove('active');document.getElementById('confirmBtn').textContent='Lock In';document.getElementById('confirmBtn').style.animation='';document.getElementById('confirmBtn').style.borderColor='';document.getElementById('confirmBtn').style.color='';document.getElementById('confirmBtn').style.boxShadow='';document.querySelectorAll('.char-card').forEach(c=>c.classList.remove('selected'));showScreen('char-screen')}
 
 // Maze
-const MAZE_COLS=21,MAZE_ROWS=15,COINS_TOTAL=8;
+const MAZE_COLS=21,MAZE_ROWS=15,COINS_TOTAL=5;
 let mazeGameOver=false,mazeCellSize=32;
 const charImgs={1:null,2:null,3:null,4:null};
 (function pci(){for(let i=1;i<=4;i++){if(!charImgs[i]){charImgs[i]=new Image();charImgs[i].src=`images/character-${i}.jpg`}}})();
@@ -343,7 +345,7 @@ function enterPlanet(planetId){currentPlanet=planetId;const p=planets.find(p=>p.
   friendlies=mazeData.friendlySpawns.map(([x,y],i)=>{return{pos:[x,y],charId:availableIds[i]||((usedIds.size+i)%4+1)}});
   document.getElementById('mazePlanetName').textContent=p.icon+' '+p.name;document.getElementById('mazePlanetName').style.color=p.id==='magmara'?'#fca5a5':p.id==='celestia'?'#d8b4fe':'#7dd3fc';
   document.getElementById('mazeCharName').textContent=charNames[selectedChar]+' · 🪙 '+coins+'/'+totalCoins;document.getElementById('mazeCharName').style.color=charColors[selectedChar];
-  showScreen('maze-screen');setTimeout(drawMaze,60);startMazeTimer();
+  showScreen('maze-screen');setTimeout(()=>{drawMaze();updateCompass();updateCoinTrack()},60);startMazeTimer();
 }
 
 function startMazeTimer(){stopMazeTimer();mazeStartTime=Date.now();document.getElementById('mazeTimer').textContent='00:00';mazeTimerInterval=setInterval(()=>{const e=Math.floor((Date.now()-mazeStartTime)/1000);document.getElementById('mazeTimer').textContent=Math.floor(e/60).toString().padStart(2,'0')+':'+(e%60).toString().padStart(2,'0')},250)}
@@ -360,8 +362,36 @@ function drawMaze(){const c=document.getElementById('maze-canvas'),mw=Math.min(i
 
 function drawCharOnMaze(ctx,cx,cy,charId,cs,role){const x=cx*cs,y=cy*cs,pad=cs*0.1,size=cs-pad*2,img=charImgs[charId],gx=x+cs/2,gy=y+cs/2;const glowColor=role===true?charColors[charId]:role==='friendly'?'rgba(34,197,94,0.5)':'rgba(255,60,60,0.5)',borderColor=role===true?charColors[charId]:role==='friendly'?'#22c55e':'#ef4444',gr=cs*0.55;const g=ctx.createRadialGradient(gx,gy,gr*0.2,gx,gy,gr);g.addColorStop(0,glowColor);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(gx,gy,gr,0,Math.PI*2);ctx.fill();if(img&&img.complete&&img.naturalWidth>0){ctx.save();ctx.beginPath();ctx.arc(gx,gy,size/2,0,Math.PI*2);ctx.clip();ctx.drawImage(img,x+pad,y+pad,size,size);ctx.restore();ctx.strokeStyle=borderColor;ctx.lineWidth=2;ctx.beginPath();ctx.arc(gx,gy,size/2,0,Math.PI*2);ctx.stroke()}else{ctx.fillStyle=borderColor;ctx.beginPath();ctx.arc(gx,gy,size/2,0,Math.PI*2);ctx.fill()}const labels={1:'SPEED',2:'HIP',3:'ENG',4:'SHAD'},label=role===true?'YOU':role==='friendly'?labels[charId]+' ✦':labels[charId];ctx.fillStyle=role===true?'#fff':role==='friendly'?'#4ade80':'#fca5a5';ctx.font=`bold ${Math.max(8,cs*0.18)}px Orbitron`;ctx.textAlign='center';ctx.fillText(label,gx,y+cs+Math.max(10,cs*0.2))}
 
-function movePlayer(dx,dy){if(!mazeData||mazeGameOver)return;const[cx,cy]=playerPos,nx=cx+dx,ny=cy+dy;if(nx<0||nx>=MAZE_COLS||ny<0||ny>=MAZE_ROWS)return;if(mazeData.grid[ny][nx]===1)return;playerPos=[nx,ny];mazeData.coinPositions=mazeData.coinPositions.filter(([cc,cr])=>{if(cc===nx&&cr===ny){coins++;return false}return true});document.getElementById('mazeCharName').textContent=charNames[selectedChar]+' · 🪙 '+coins+'/'+totalCoins;if(mazeData.coinPositions.length===0){mazeGameOver=true;drawMaze();winMaze();return}turnCount++;if(turnCount%2===0)moveEnemies();if(checkCaught()){mazeGameOver=true;drawMaze();loseMaze();return}drawMaze()}
+function movePlayer(dx,dy){if(!mazeData||mazeGameOver)return;const[cx,cy]=playerPos,nx=cx+dx,ny=cy+dy;if(nx<0||nx>=MAZE_COLS||ny<0||ny>=MAZE_ROWS)return;if(mazeData.grid[ny][nx]===1)return;playerPos=[nx,ny];
+  // Collect coin?
+  mazeData.coinPositions=mazeData.coinPositions.filter(([cc,cr])=>{if(cc===nx&&cr===ny){coins++;return false}return true});
+  // Friendly NPC gives coin too!
+  friendlies=friendlies.filter(f=>{if(f.pos[0]===nx&&f.pos[1]===ny){coins++;return false}return true});
+  document.getElementById('mazeCharName').textContent=charNames[selectedChar]+' · 🪙 '+coins+'/'+totalCoins;
+  // Update compass
+  updateCompass();
+  updateCoinTrack();
+  if(coins>=totalCoins){mazeGameOver=true;drawMaze();winMaze();return}
+  turnCount++;if(turnCount%3===0)moveEnemies();
+  if(checkCaught()){mazeGameOver=true;drawMaze();loseMaze();return}
+  drawMaze()}
 function moveEnemies(){for(let e of enemies){let path=bfs(e.pos,playerPos,mazeData.grid);if(path&&path.length>=2)e.pos=path[1]}}
+function updateCompass(){
+  const targets=[...mazeData.coinPositions,...friendlies.map(f=>f.pos)];
+  if(targets.length===0){document.getElementById('compass').textContent='🎉';return}
+  let best=null,bestDist=Infinity;
+  for(let t of targets){const d=Math.abs(t[0]-playerPos[0])+Math.abs(t[1]-playerPos[1]);if(d<bestDist){bestDist=d;best=t}}
+  if(!best){document.getElementById('compass').textContent='';return}
+  let path=bfs(playerPos,best,mazeData.grid);
+  if(!path||path.length<2){document.getElementById('compass').textContent='';return}
+  const [nx,ny]=path[1],dx=nx-playerPos[0],dy=ny-playerPos[1];
+  const arrows={'-1,0':'⬅️','1,0':'➡️','0,-1':'⬆️','0,1':'⬇️'};
+  document.getElementById('compass').textContent=arrows[dx+','+dy]||'';
+}
+function updateCoinTrack(){
+  let s=''; for(let i=0;i<totalCoins;i++)s+=i<coins?'🪙':'⭕';
+  document.getElementById('coinTrack').textContent=s;
+}
 function checkCaught(){for(let e of enemies){if(e.pos[0]===playerPos[0]&&e.pos[1]===playerPos[1])return true}return false}
 function winMaze(){stopMazeTimer();const e=Math.floor((Date.now()-mazeStartTime)/1000),m=Math.floor(e/60),s=e%60;document.getElementById('winTime').textContent=`All coins collected in ${m}m ${s}s with ${charNames[selectedChar]}!`;document.querySelector('.win-icon').textContent='🏆';document.querySelector('.win-title').textContent='YOU ESCAPED!';document.querySelector('.win-title').style.color='#22c55e';document.querySelector('.win-box').style.borderColor='#22c55e';document.querySelector('.win-btn').style.borderColor='#22c55e';document.querySelector('.win-btn').style.color='#22c55e';document.getElementById('winOverlay').classList.add('show')}
 function loseMaze(){stopMazeTimer();document.getElementById('winTime').textContent='The shadows caught you...';document.querySelector('.win-icon').textContent='💀';document.querySelector('.win-title').textContent='CAUGHT!';document.querySelector('.win-title').style.color='#ef4444';document.querySelector('.win-box').style.borderColor='#ef4444';document.querySelector('.win-btn').style.borderColor='#ef4444';document.querySelector('.win-btn').style.color='#ef4444';document.getElementById('winOverlay').classList.add('show')}
